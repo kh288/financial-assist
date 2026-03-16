@@ -15,8 +15,6 @@ const DEFAULT_FORM = {
       balance: 10000,
       apr: 22,
       minimumPayment: 200,
-      pauseable: false,
-      paymentStrategy: "minimum" as const,
     },
   ] as Debt[],
   timeHorizonYears: 10,

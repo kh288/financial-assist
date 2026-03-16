@@ -4,8 +4,6 @@ export interface Debt {
   balance: number
   apr: number
   minimumPayment: number
-  pauseable: boolean
-  paymentStrategy: 'minimum' | 'aggressive'
 }
 
 export interface SimInputs {
@@ -36,9 +34,9 @@ export interface StrategyResult {
 }
 
 export interface SimResults {
-  strategyA: StrategyResult  // Defer: minimums only, invest everything else
-  strategyB: StrategyResult  // Debt First: clear debt, then invest
-  strategyC: StrategyResult  // Balanced: amortize debt by horizon while investing
+  strategyA: StrategyResult  // Dividend-First: amortized minimum payments, invest the rest
+  strategyB: StrategyResult  // Aggressive: all cash to debt until clear, then invest
+  strategyC: StrategyResult  // Balanced: 50/50 split between debt and investment each month
   crossoverAB: number | null // month A net worth first overtakes B
   crossoverCB: number | null // month C net worth first overtakes B
 }

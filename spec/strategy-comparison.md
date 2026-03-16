@@ -13,53 +13,43 @@ Give users a visual tool to compare three financial strategies over time, so the
 
 ## The Three Strategies
 
-### Strategy A — Scheduled
+### Strategy A — Dividend-First
 - Calculate a **fixed amortized payment** per debt at simulation start (from original balance over the full horizon) — stays constant for the entire run, guaranteeing payoff by the end
-- Pay that fixed amount from the monthly contribution each month; invest the rest
+- This is the **minimum required payment** to guarantee debt payoff at the horizon; all remaining cash is invested to maximize dividend income
 - **DRIP ON**: dividends compound back into portfolio
 - **DRIP OFF**: dividends are pocketed as income (tracked but not reinvested or applied to debt)
-- Debt-free date is guaranteed at or before the end of the horizon (exactly at the horizon if no DRIP-off acceleration)
+- Debt-free date is guaranteed at or before the end of the horizon
 
 ### Strategy B — Aggressive
 - Put the **full monthly contribution** toward debt every month (avalanche — highest APR first) until all debts are eliminated
-- Existing portfolio compounds with DRIP during the debt phase regardless of the DRIP setting
+- Existing portfolio compounds with dividends during the debt phase regardless of the DRIP setting
 - Once debt-free: full monthly contribution + dividends flow into portfolio per DRIP setting
 - Debt-free date is the earliest of the three strategies
 
-### Strategy C — Balanced
-- Calculate a **fixed monthly payment** per debt at simulation start (amortization from original balance over the full horizon) — this amount stays constant for the entire run
-- Pay that fixed amount from the monthly contribution each month; invest the rest
+### Strategy C — Balanced 50/50
+- Each month, **split the monthly contribution evenly**: 50% goes to debt (avalanche — highest APR first), 50% goes to the portfolio
+- If the 50% debt allocation clears all remaining debt before it's exhausted, the surplus overflows to the portfolio that month
+- Once debt-free: the full monthly contribution flows into the portfolio
 - **DRIP ON**: dividends compound into portfolio
-- **DRIP OFF**: dividends apply to pauseable debts first (highest APR), then non-pauseable, then portfolio
-- Debt-free date is **dynamic** — because interest accrues before the fixed payment each month, and dividends may chip away at debt additionally, the actual payoff can come *before* the horizon
+- **DRIP OFF**: dividends are pocketed as income (tracked but not reinvested)
+- Debt-free date is **dynamic** — determined by when the 50% allocation outpaces accruing interest; may occur before or after the horizon
 
 **Key constraint**: The total monthly cash input is the **same fixed amount** across all three strategies. This keeps the comparison fair.
 
-**Payoff constraint**: All three strategies guarantee that every debt is paid off by the end of the time horizon. A does this via a fixed amortized schedule; B does this by throwing all available cash at debt aggressively; C does this via a fixed amortized schedule for non-pauseable debts, with dividends further accelerating payoff of pauseable ones.
+**Payoff constraint**: Strategies A and B guarantee that every debt is paid off by the end of the time horizon. Strategy C does not — payoff depends on whether the 50% debt allocation is sufficient to outpace interest.
 
 ---
 
-## Pauseable Debts
-
-A debt can be marked **Pauseable**:
-- In Strategy A: all debts (pauseable or not) receive the same fixed amortized payment — pauseable has no effect
-- In Strategy B: all debts receive aggressive paydown regardless of the flag
-- In Strategy C with DRIP OFF: dividend income targets pauseable debts first (highest APR), then non-pauseable, then portfolio
-- Pauseable debts **always continue to accrue interest** — there is no true payment pause
-
-The "pauseable" flag is primarily a hint to direct dividend income toward certain debts first in Strategy C (DRIP OFF).
-
----
-
-## Payment Rules Summary
+## How The Strategies Differ
 
 | | Strategy A | Strategy B | Strategy C |
 |---|---|---|---|
-| Monthly debt payment | Fixed amortization (calculated once from original balance, covers all debts) | Full monthly contribution (avalanche until clear) | Fixed amortization (calculated once from original balance, non-pauseable debts only) |
-| Monthly investment | Contribution minus fixed payments | $0 during debt phase | Contribution minus fixed payments |
-| Dividends (DRIP ON) | → Portfolio | → Portfolio (during & after) | → Portfolio |
-| Dividends (DRIP OFF) | Pocketed (tracked only) | → Portfolio after debt-free | → Pauseable debts → Non-pauseable debts → Portfolio |
-| Debt-free timing | Guaranteed by horizon (fixed schedule) | Earliest — all cash to debt | Dynamic (typically before horizon via dividend acceleration) |
+| **Debt payments** | Fixed amortized minimum (guarantees payoff at horizon end) | Full contribution, avalanche until clear | 50% of contribution, avalanche |
+| **Investment** | Everything above the amortized minimum | $0 during debt phase | 50% of contribution |
+| **Dividends (DRIP ON)** | → Portfolio | → Portfolio (during & after) | → Portfolio |
+| **Dividends (DRIP OFF)** | Pocketed (tracked only) | → Portfolio after debt-free | Pocketed (tracked only) |
+| **Debt-free timing** | Guaranteed by horizon (fixed schedule) | Earliest — all cash to debt | Dynamic (depends on 50% allocation vs interest) |
+| **Early investment** | Maximum — investing from day one | None — waits until debt-free | Moderate — half invested from day one |
 
 ---
 
@@ -69,7 +59,7 @@ The "pauseable" flag is primarily a hint to direct dividend income toward certai
 - Current portfolio value ($)
 - Monthly contribution ($) — shared across all strategies
 - Dividend yield (% annually) — manual input; no live stock data in v1
-- **DRIP toggle**: ON = reinvest dividends / OFF = pocket or redirect dividends
+- **DRIP toggle**: ON = reinvest dividends / OFF = pocket dividends
 
 ### Debts Section
 - Add one or more debts via **+ Add Debt**
@@ -78,12 +68,10 @@ The "pauseable" flag is primarily a hint to direct dividend income toward certai
   - Balance ($)
   - APR (%)
   - Minimum Monthly Payment ($)
-  - **Pauseable?** toggle — directs dividend income to this debt first in Strategy C (DRIP OFF)
-  - **Payment Strategy** selector (Minimum / Aggressive) — UI present, primarily affects Strategy B's ordering
-- **Live paycheck callout** below the debt list: shows what each strategy pays from paycheck per month toward debt, updated as debts and horizon change
+- **Live paycheck callout** below the debt list: shows what each strategy allocates from paycheck per month toward debt, updated as debts and horizon change
 
 ### Settings Section
-- Time horizon (years) — determines simulation length and Strategy B/C amortization targets
+- Time horizon (years) — determines simulation length and Strategy A's amortization target
 - Dividend tax rate (%) — used in post-calculation summary estimate only
 
 ---
@@ -97,7 +85,7 @@ The "pauseable" flag is primarily a hint to direct dividend income toward certai
 4. Record snapshot
 
 ### Avalanche Ordering
-Debt payments always target the **highest APR debt first**. Within the pauseable/non-pauseable grouping in Strategy C (DRIP OFF), avalanche still applies within each group.
+Debt payments always target the **highest APR debt first**.
 
 ### Tracked Data Per Month Per Strategy
 - Portfolio value
@@ -140,7 +128,6 @@ Debt payments always target the **highest APR debt first**. Within the pauseable
 |---|---|
 | Real-time vs. Calculate button | **Calculate button** — avoids jitter on complex inputs |
 | Debt payoff order | **Avalanche** (highest APR first) |
-| Pauseable debt interest during pause | **Yes, always accrues** |
 | Form persistence | **localStorage** — all inputs saved and restored on reload |
 | Light/dark mode | **Manual toggle** — initializes from system preference |
 
@@ -176,3 +163,4 @@ See [architecture.md](./architecture.md) for full rules. Summary:
 - Snowball vs. avalanche toggle for debt payoff order
 - Dividend frequency (monthly / quarterly / annual) affecting cash flow timing
 - Export results as PDF or CSV
+- Adjustable split ratio for Strategy C (e.g. 60/40 instead of fixed 50/50)

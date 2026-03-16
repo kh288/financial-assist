@@ -13,8 +13,6 @@ function newDebt(): Debt {
     balance: 0,
     apr: 0,
     minimumPayment: 0,
-    pauseable: false,
-    paymentStrategy: 'minimum',
   }
 }
 
@@ -84,38 +82,6 @@ function DebtCard({
           />
         </div>
 
-        <div className="field-group">
-          <label>B2 Payment Strategy</label>
-          <div className="segmented">
-            <button
-              type="button"
-              className={debt.paymentStrategy === 'minimum' ? 'active' : ''}
-              onClick={() => onChange({ ...debt, paymentStrategy: 'minimum' })}
-            >
-              Minimum
-            </button>
-            <button
-              type="button"
-              className={debt.paymentStrategy === 'aggressive' ? 'active' : ''}
-              onClick={() => onChange({ ...debt, paymentStrategy: 'aggressive' })}
-            >
-              Aggressive
-            </button>
-          </div>
-        </div>
-
-        <div className="field-group toggle-group">
-          <label htmlFor={`${id}-pauseable`}>Pauseable in A?</label>
-          <label className="toggle">
-            <input
-              id={`${id}-pauseable`}
-              type="checkbox"
-              checked={debt.pauseable}
-              onChange={e => onChange({ ...debt, pauseable: e.target.checked })}
-            />
-            <span className="toggle-slider" />
-          </label>
-        </div>
       </div>
     </div>
   )

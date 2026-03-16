@@ -22,7 +22,7 @@ function App() {
   const totalMonths = form.timeHorizonYears * 12
   const paycheckA = totalRequiredPayment(form.debts, totalMonths)
   const paycheckB = form.monthlyContribution
-  const paycheckC = totalRequiredPayment(form.debts.filter(d => !d.pauseable), totalMonths)
+  const paycheckC = form.monthlyContribution * 0.5
 
   function handleCalculate() {
     setResults(runSimulation({
@@ -72,9 +72,9 @@ function App() {
               <div className="paycheck-callout">
                 <span>Monthly paycheck toward debt by Yr {form.timeHorizonYears}:</span>
                 <span className="paycheck-amounts">
-                  <span className="pc-a">A (scheduled): <strong>{fmt$(paycheckA)}/mo</strong></span>
+                  <span className="pc-a">A (dividend-first): <strong>{fmt$(paycheckA)}/mo</strong></span>
                   <span className="pc-b">B (aggressive): <strong>{fmt$(paycheckB)}/mo</strong></span>
-                  <span className="pc-c">C (balanced): <strong>{fmt$(paycheckC)}/mo</strong></span>
+                  <span className="pc-c">C (50/50): <strong>{fmt$(paycheckC)}/mo</strong></span>
                 </span>
               </div>
             )}

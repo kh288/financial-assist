@@ -5,7 +5,6 @@ interface DebtState {
   balance: number
   apr: number
   minimumPayment: number
-  pauseable: boolean
 }
 
 function cloneDebts(debts: SimInputs['debts']): DebtState[] {
@@ -14,7 +13,6 @@ function cloneDebts(debts: SimInputs['debts']): DebtState[] {
     balance: d.balance,
     apr: d.apr,
     minimumPayment: d.minimumPayment,
-    pauseable: d.pauseable,
   }))
 }
 
@@ -89,8 +87,9 @@ export function runSimulation(inputs: SimInputs): SimResults {
   }
 }
 
-// Strategy A — Scheduled: pay a fixed amortized amount per debt (calculated once from original balance
-// over the full horizon), invest the rest. Guarantees payoff by end of horizon.
+// Strategy A — Dividend-First: pay the minimum amortized amount per debt (calculated once from
+// original balance over the full horizon) to guarantee payoff by end of horizon, then invest ALL
+// remaining cash to maximize dividend income.
 // DRIP ON: dividends compound. DRIP OFF: dividends are pocketed (not to debt, not reinvested).
 function simulateStrategyA(inputs: SimInputs, totalMonths: number): StrategyResult {
   const debts = cloneDebts(inputs.debts)
@@ -207,10 +206,10 @@ function simulateStrategyB(inputs: SimInputs, totalMonths: number): StrategyResu
   return { snapshots, debtFreeMonth, totalInterestPaid: cumulativeInterest, totalDividendsEarned: cumulativeDividends }
 }
 
-// Strategy C — Balanced: pay a fixed monthly amount per debt (calculated once from the original
-// balance at the start of the simulation), invest the rest. The debt-free date emerges dynamically
-// — dividends (when DRIP off) chip away at debt on top of the fixed payment, paying it off earlier.
-// DRIP ON: dividends compound into portfolio. DRIP OFF: dividends → pauseable debts first, then portfolio.
+// Strategy C — Balanced 50/50: each month split the monthly contribution evenly — half goes to
+// debt (avalanche: highest APR first), half goes to the portfolio. Any debt-budget surplus once
+// all debts are paid overflows to portfolio. After debt-free, the full contribution invests.
+// DRIP ON: dividends compound into portfolio. DRIP OFF: dividends are pocketed.
 function simulateStrategyC(inputs: SimInputs, totalMonths: number): StrategyResult {
   const debts = cloneDebts(inputs.debts)
   let portfolio = inputs.currentPortfolioValue
@@ -219,69 +218,40 @@ function simulateStrategyC(inputs: SimInputs, totalMonths: number): StrategyResu
   let debtFreeMonth: number | null = null
   const snapshots: MonthSnapshot[] = []
 
-  // Pre-calculate fixed monthly payment for each debt from its original balance.
-  // Non-pauseable debts always receive their fixed payment.
-  // Pauseable debts only receive their fixed payment when DRIP is ON — because when DRIP is OFF,
-  // dividend income is redirected to pauseable debts instead (as the primary payoff mechanism).
-  // This ensures the payoff guarantee holds regardless of DRIP setting.
-  const fixedPayments = new Map<string, number>()
-  for (const debt of debts) {
-    if (debt.balance > 0) {
-      fixedPayments.set(debt.id, amortizePayment(debt.balance, debt.apr, totalMonths))
-    }
-  }
-
   for (let month = 1; month <= totalMonths; month++) {
     cumulativeInterest += accrueInterest(debts)
 
     const monthlyDividend = portfolio * (inputs.dividendYieldPercent / 100 / 12)
     cumulativeDividends += monthlyDividend
 
-    // Pay fixed payment on debts:
-    // - Non-pauseable debts always receive their fixed amortized payment.
-    // - Pauseable debts receive their fixed payment only when DRIP is ON (since dividends aren't
-    //   being redirected to them in that case — they need this fallback to guarantee payoff).
-    let cashRemaining = inputs.monthlyContribution
-    for (const debt of debts) {
-      if (debt.balance <= 0) continue
-      if (debt.pauseable && !inputs.drip) continue // dividends will cover this debt
-      const fixed = fixedPayments.get(debt.id) ?? debt.minimumPayment
-      const payment = Math.min(Math.max(fixed, debt.minimumPayment), debt.balance, cashRemaining)
-      debt.balance = Math.max(0, debt.balance - payment)
-      cashRemaining = Math.max(0, cashRemaining - payment)
-    }
-
-    // Apply dividends
-    if (inputs.drip) {
-      portfolio += monthlyDividend
-    } else {
-      // Dividends → pauseable debts first (highest APR), then non-pauseable, then portfolio
-      let divRemaining = monthlyDividend
-      const prioritized = [
-        ...debts.filter(d => d.balance > 0 && d.pauseable).sort((a, b) => b.apr - a.apr),
-        ...debts.filter(d => d.balance > 0 && !d.pauseable).sort((a, b) => b.apr - a.apr),
-      ]
-      for (const item of prioritized) {
-        if (divRemaining <= 0) break
-        const debt = debts.find(d => d.id === item.id)!
-        const payment = Math.min(debt.balance, divRemaining)
-        debt.balance = Math.max(0, debt.balance - payment)
-        divRemaining -= payment
-      }
-      if (divRemaining > 0) portfolio += divRemaining
-    }
-
-    // Invest remaining cash
-    portfolio += Math.max(0, cashRemaining)
-
     const totalDebt = sumBalances(debts)
-    if (totalDebt < 0.01 && debtFreeMonth === null) debtFreeMonth = month
+
+    let investmentBudget: number
+    if (totalDebt < 0.01) {
+      // Debt-free: all contribution flows to portfolio
+      investmentBudget = inputs.monthlyContribution
+    } else {
+      // 50% to debt (avalanche), 50% to portfolio
+      const debtBudget = inputs.monthlyContribution * 0.5
+      investmentBudget = inputs.monthlyContribution * 0.5
+
+      const debtBefore = sumBalances(debts)
+      applyPayment(debts, debtBudget)
+      const actualPaid = debtBefore - sumBalances(debts)
+      investmentBudget += debtBudget - actualPaid // surplus when debt cleared within budget
+    }
+
+    if (inputs.drip) portfolio += monthlyDividend
+    portfolio += investmentBudget
+
+    const finalDebt = sumBalances(debts)
+    if (finalDebt < 0.01 && debtFreeMonth === null) debtFreeMonth = month
 
     snapshots.push({
       month,
       portfolioValue: portfolio,
-      totalDebt,
-      netWorth: portfolio - totalDebt,
+      totalDebt: finalDebt,
+      netWorth: portfolio - finalDebt,
       cumulativeDividends,
       cumulativeInterestPaid: cumulativeInterest,
       monthlyDividendIncome: monthlyDividend,
