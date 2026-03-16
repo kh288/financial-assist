@@ -1,120 +1,161 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { DebtInput } from './components/DebtInput'
+import { StrategyChart } from './components/StrategyChart'
+import { SummaryPanel } from './components/SummaryPanel'
+import { runSimulation } from './lib/calculator'
+import type { Debt, SimResults } from './lib/types'
 import './App.css'
 
+const DEFAULT_DEBTS: Debt[] = [
+  {
+    id: 'default-1',
+    label: 'Credit Card',
+    balance: 10000,
+    apr: 22,
+    minimumPayment: 200,
+    pauseable: false,
+    paymentStrategy: 'minimum',
+  },
+]
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [currentPortfolioValue, setCurrentPortfolioValue] = useState(5000)
+  const [monthlyContribution, setMonthlyContribution] = useState(1000)
+  const [dividendYieldPercent, setDividendYieldPercent] = useState(4)
+  const [drip, setDrip] = useState(true)
+  const [debts, setDebts] = useState<Debt[]>(DEFAULT_DEBTS)
+  const [timeHorizonYears, setTimeHorizonYears] = useState(10)
+  const [taxRatePercent, setTaxRatePercent] = useState(15)
+  const [results, setResults] = useState<SimResults | null>(null)
+
+  function handleCalculate() {
+    const result = runSimulation({
+      debts,
+      currentPortfolioValue,
+      monthlyContribution,
+      dividendYieldPercent,
+      drip,
+      timeHorizonYears,
+      taxRatePercent,
+    })
+    setResults(result)
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app">
+      <header className="app-header">
+        <h1>Dividend vs. Debt-First</h1>
+        <p className="app-subtitle">
+          Compare building dividends now vs. paying off debt first — and find your crossover point.
+        </p>
+      </header>
 
-      <div className="ticks"></div>
+      <main className="app-main">
+        <section className="form-section">
+          <div className="form-block">
+            <h2 className="form-block-title">Investment</h2>
+            <div className="field-grid">
+              <div className="field-group">
+                <label htmlFor="portfolio">Current Portfolio ($)</label>
+                <input
+                  id="portfolio"
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={currentPortfolioValue}
+                  onChange={e => setCurrentPortfolioValue(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div className="field-group">
+                <label htmlFor="contribution">Monthly Contribution ($)</label>
+                <input
+                  id="contribution"
+                  type="number"
+                  min="0"
+                  step="50"
+                  value={monthlyContribution}
+                  onChange={e => setMonthlyContribution(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div className="field-group">
+                <label htmlFor="yield">Dividend Yield (% annual)</label>
+                <input
+                  id="yield"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={dividendYieldPercent}
+                  onChange={e => setDividendYieldPercent(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div className="field-group toggle-group">
+                <label htmlFor="drip">DRIP (Reinvest Dividends)</label>
+                <label className="toggle">
+                  <input
+                    id="drip"
+                    type="checkbox"
+                    checked={drip}
+                    onChange={e => setDrip(e.target.checked)}
+                  />
+                  <span className="toggle-slider" />
+                </label>
+              </div>
+            </div>
+          </div>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+          <div className="form-block">
+            <h2 className="form-block-title">Debts</h2>
+            <DebtInput debts={debts} onChange={setDebts} />
+          </div>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+          <div className="form-block">
+            <h2 className="form-block-title">Settings</h2>
+            <div className="field-grid">
+              <div className="field-group">
+                <label htmlFor="horizon">Time Horizon (years)</label>
+                <input
+                  id="horizon"
+                  type="number"
+                  min="1"
+                  max="50"
+                  step="1"
+                  value={timeHorizonYears}
+                  onChange={e => setTimeHorizonYears(parseInt(e.target.value) || 10)}
+                />
+              </div>
+              <div className="field-group">
+                <label htmlFor="tax">Dividend Tax Rate (%)</label>
+                <input
+                  id="tax"
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="1"
+                  value={taxRatePercent}
+                  onChange={e => setTaxRatePercent(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <button type="button" className="calculate-btn" onClick={handleCalculate}>
+            Calculate
+          </button>
+        </section>
+
+        {results && (
+          <section className="results-section">
+            <StrategyChart results={results} timeHorizonYears={timeHorizonYears} />
+            <SummaryPanel
+              results={results}
+              taxRatePercent={taxRatePercent}
+              timeHorizonYears={timeHorizonYears}
+            />
+          </section>
+        )}
+      </main>
+    </div>
   )
 }
 
