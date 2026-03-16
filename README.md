@@ -1,5 +1,7 @@
 # Dividend vs. Debt-First
 
+**Live site**: https://kh288.github.io/financial-assist/
+
 A financial strategy comparison tool that simulates three approaches to balancing debt payoff and dividend investing over a custom time horizon. See exactly when each strategy overtakes another — and which leaves you in the best position at the end.
 
 ## Strategies
