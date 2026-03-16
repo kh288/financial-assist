@@ -5,9 +5,20 @@
 }
 
 .app-header {
-  padding: 40px 40px 28px;
-  text-align: center;
+  padding: 32px 40px 28px;
   border-bottom: 1px solid var(--border);
+}
+
+.app-header-inner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  text-align: center;
+}
+
+.app-header-inner > div {
+  flex: 1;
 }
 
 .app-header h1 {
@@ -21,6 +32,25 @@
   max-width: 520px;
   margin: 0 auto;
   font-size: 16px;
+}
+
+.theme-toggle {
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 7px;
+  cursor: pointer;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .app-main {
