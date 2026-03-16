@@ -219,11 +219,14 @@ function simulateStrategyC(inputs: SimInputs, totalMonths: number): StrategyResu
   let debtFreeMonth: number | null = null
   const snapshots: MonthSnapshot[] = []
 
-  // Pre-calculate fixed monthly payment for each non-pauseable debt from its original balance.
-  // This stays constant — payoff date emerges from cash flows rather than being forced.
+  // Pre-calculate fixed monthly payment for each debt from its original balance.
+  // Non-pauseable debts always receive their fixed payment.
+  // Pauseable debts only receive their fixed payment when DRIP is ON — because when DRIP is OFF,
+  // dividend income is redirected to pauseable debts instead (as the primary payoff mechanism).
+  // This ensures the payoff guarantee holds regardless of DRIP setting.
   const fixedPayments = new Map<string, number>()
   for (const debt of debts) {
-    if (!debt.pauseable && debt.balance > 0) {
+    if (debt.balance > 0) {
       fixedPayments.set(debt.id, amortizePayment(debt.balance, debt.apr, totalMonths))
     }
   }
@@ -234,10 +237,14 @@ function simulateStrategyC(inputs: SimInputs, totalMonths: number): StrategyResu
     const monthlyDividend = portfolio * (inputs.dividendYieldPercent / 100 / 12)
     cumulativeDividends += monthlyDividend
 
-    // Pay fixed payment on non-pauseable debts (at least the minimum, never more than balance)
+    // Pay fixed payment on debts:
+    // - Non-pauseable debts always receive their fixed amortized payment.
+    // - Pauseable debts receive their fixed payment only when DRIP is ON (since dividends aren't
+    //   being redirected to them in that case — they need this fallback to guarantee payoff).
     let cashRemaining = inputs.monthlyContribution
     for (const debt of debts) {
-      if (debt.balance <= 0 || debt.pauseable) continue
+      if (debt.balance <= 0) continue
+      if (debt.pauseable && !inputs.drip) continue // dividends will cover this debt
       const fixed = fixedPayments.get(debt.id) ?? debt.minimumPayment
       const payment = Math.min(Math.max(fixed, debt.minimumPayment), debt.balance, cashRemaining)
       debt.balance = Math.max(0, debt.balance - payment)
