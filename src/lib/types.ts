@@ -36,7 +36,9 @@ export interface StrategyResult {
 }
 
 export interface SimResults {
-  strategyA: StrategyResult
-  strategyB: StrategyResult
-  crossoverMonth: number | null
+  strategyA: StrategyResult  // Defer: minimums only, invest everything else
+  strategyB: StrategyResult  // Debt First: clear debt, then invest
+  strategyC: StrategyResult  // Balanced: amortize debt by horizon while investing
+  crossoverAB: number | null // month A net worth first overtakes B
+  crossoverCB: number | null // month C net worth first overtakes B
 }

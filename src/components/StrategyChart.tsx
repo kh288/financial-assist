@@ -26,111 +26,82 @@ function fmt(v: number): string {
   return `${sign}$${abs.toFixed(0)}`
 }
 
-export function StrategyChart({ results, timeHorizonYears }: Props) {
-  const { strategyA, strategyB, crossoverMonth } = results
-  const totalMonths = timeHorizonYears * 12
+// A=green, B=blue, C=amber
+const COLORS = {
+  a: { net: '#22c55e', port: '#86efac', debt: '#fca5a5' },
+  b: { net: '#3b82f6', port: '#93c5fd', debt: '#ef4444' },
+  c: { net: '#f59e0b', port: '#fcd34d', debt: '#fb923c' },
+}
 
+export function StrategyChart({ results, timeHorizonYears }: Props) {
+  const { strategyA, strategyB, strategyC, crossoverAB, crossoverCB } = results
+  const totalMonths = timeHorizonYears * 12
   const labels = Array.from({ length: totalMonths }, (_, i) => i + 1)
 
   const crossoverPlugin: Plugin<'line'> = {
-    id: 'crossoverLine',
+    id: 'crossoverLines',
     afterDraw(chart) {
-      if (!crossoverMonth) return
       const { ctx, chartArea, scales } = chart
-      const x = scales.x.getPixelForValue(crossoverMonth - 1)
-      ctx.save()
-      ctx.beginPath()
-      ctx.moveTo(x, chartArea.top)
-      ctx.lineTo(x, chartArea.bottom)
-      ctx.strokeStyle = 'rgba(170, 59, 255, 0.7)'
-      ctx.lineWidth = 2
-      ctx.setLineDash([6, 3])
-      ctx.stroke()
-      ctx.fillStyle = 'rgba(170, 59, 255, 0.85)'
-      ctx.font = 'bold 11px system-ui'
-      ctx.textAlign = 'center'
-      ctx.fillText('A > B', x, chartArea.top + 14)
-      ctx.restore()
+
+      const drawLine = (month: number, color: string, label: string) => {
+        const x = scales.x.getPixelForValue(month - 1)
+        ctx.save()
+        ctx.beginPath()
+        ctx.moveTo(x, chartArea.top)
+        ctx.lineTo(x, chartArea.bottom)
+        ctx.strokeStyle = color
+        ctx.lineWidth = 2
+        ctx.setLineDash([6, 3])
+        ctx.stroke()
+        ctx.fillStyle = color
+        ctx.font = 'bold 11px system-ui'
+        ctx.textAlign = 'center'
+        ctx.fillText(label, x, chartArea.top + 14)
+        ctx.restore()
+      }
+
+      if (crossoverAB) drawLine(crossoverAB, COLORS.a.net, 'A>B')
+      if (crossoverCB) drawLine(crossoverCB, COLORS.c.net, 'C>B')
     },
   }
+
+  const dataset = (
+    label: string,
+    data: number[],
+    color: string,
+    dash?: number[],
+    hidden = false
+  ) => ({
+    label,
+    data,
+    borderColor: color,
+    backgroundColor: 'transparent',
+    borderWidth: dash ? 1.5 : 2.5,
+    borderDash: dash,
+    pointRadius: 0,
+    tension: 0.3,
+    hidden,
+  })
 
   const data: ChartData<'line'> = {
     labels,
     datasets: [
-      {
-        label: 'A: Net Worth',
-        data: strategyA.snapshots.map(s => s.netWorth),
-        borderColor: '#22c55e',
-        backgroundColor: 'transparent',
-        borderWidth: 2.5,
-        pointRadius: 0,
-        tension: 0.3,
-        order: 1,
-      },
-      {
-        label: 'B: Net Worth',
-        data: strategyB.snapshots.map(s => s.netWorth),
-        borderColor: '#3b82f6',
-        backgroundColor: 'transparent',
-        borderWidth: 2.5,
-        pointRadius: 0,
-        tension: 0.3,
-        order: 2,
-      },
-      {
-        label: 'A: Portfolio',
-        data: strategyA.snapshots.map(s => s.portfolioValue),
-        borderColor: '#86efac',
-        backgroundColor: 'transparent',
-        borderWidth: 1.5,
-        borderDash: [5, 4],
-        pointRadius: 0,
-        tension: 0.3,
-        order: 3,
-      },
-      {
-        label: 'B: Portfolio',
-        data: strategyB.snapshots.map(s => s.portfolioValue),
-        borderColor: '#93c5fd',
-        backgroundColor: 'transparent',
-        borderWidth: 1.5,
-        borderDash: [5, 4],
-        pointRadius: 0,
-        tension: 0.3,
-        order: 4,
-      },
-      {
-        label: 'A: Debt',
-        data: strategyA.snapshots.map(s => -s.totalDebt),
-        borderColor: '#fb923c',
-        backgroundColor: 'transparent',
-        borderWidth: 1.5,
-        borderDash: [2, 3],
-        pointRadius: 0,
-        tension: 0.1,
-        order: 5,
-      },
-      {
-        label: 'B: Debt',
-        data: strategyB.snapshots.map(s => -s.totalDebt),
-        borderColor: '#ef4444',
-        backgroundColor: 'transparent',
-        borderWidth: 1.5,
-        borderDash: [2, 3],
-        pointRadius: 0,
-        tension: 0.1,
-        order: 6,
-      },
+      dataset('A: Net Worth',  strategyA.snapshots.map(s => s.netWorth),      COLORS.a.net),
+      dataset('B: Net Worth',  strategyB.snapshots.map(s => s.netWorth),      COLORS.b.net),
+      dataset('C: Net Worth',  strategyC.snapshots.map(s => s.netWorth),      COLORS.c.net),
+      dataset('A: Portfolio',  strategyA.snapshots.map(s => s.portfolioValue), COLORS.a.port, [5, 4], true),
+      dataset('B: Portfolio',  strategyB.snapshots.map(s => s.portfolioValue), COLORS.b.port, [5, 4], true),
+      dataset('C: Portfolio',  strategyC.snapshots.map(s => s.portfolioValue), COLORS.c.port, [5, 4], true),
+      dataset('A: Debt',       strategyA.snapshots.map(s => -s.totalDebt),    COLORS.a.debt, [2, 3], true),
+      dataset('B: Debt',       strategyB.snapshots.map(s => -s.totalDebt),    COLORS.b.debt, [2, 3], true),
+      dataset('C: Debt',       strategyC.snapshots.map(s => -s.totalDebt),    COLORS.c.debt, [2, 3], true),
     ],
   }
 
   const options: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: true,
-    interaction: {
-      mode: 'index',
-      intersect: false,
-    },
+    interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: {
         position: 'top',
@@ -138,8 +109,8 @@ export function StrategyChart({ results, timeHorizonYears }: Props) {
           color: '#9ca3af',
           usePointStyle: true,
           pointStyleWidth: 16,
-          font: { size: 12 },
-          padding: 16,
+          font: { size: 11 },
+          padding: 12,
         },
       },
       tooltip: {
@@ -182,6 +153,7 @@ export function StrategyChart({ results, timeHorizonYears }: Props) {
 
   return (
     <div className="chart-wrapper">
+      <p className="chart-hint">Portfolio &amp; debt lines hidden by default — click legend to show.</p>
       <Line data={data} options={options} plugins={[crossoverPlugin]} />
     </div>
   )
